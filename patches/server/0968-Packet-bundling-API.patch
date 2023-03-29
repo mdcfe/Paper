@@ -1,0 +1,302 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MD <1917406+mdcfe@users.noreply.github.com>
+Date: Wed, 29 Mar 2023 20:00:00 +0100
+Subject: [PATCH] Packet bundling API!
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 2d8488b9aa088b6d5f0c7e557b8ad0b29bc4cd88..0a16828683c69d40e1068d0a55c88bd4869cefc7 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -12,9 +12,11 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.net.SocketAddress;
+ import java.time.Duration;
+ import java.time.Instant;
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.EnumSet;
+ import java.util.Iterator;
++import java.util.LinkedList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Objects;
+@@ -63,73 +65,7 @@ import net.minecraft.network.chat.SignedMessageBody;
+ import net.minecraft.network.chat.SignedMessageChain;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketUtils;
+-import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+-import net.minecraft.network.protocol.game.ClientboundBlockChangedAckPacket;
+-import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+-import net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket;
+-import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+-import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
+-import net.minecraft.network.protocol.game.ClientboundDisguisedChatPacket;
+-import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
+-import net.minecraft.network.protocol.game.ClientboundMoveVehiclePacket;
+-import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
+-import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
+-import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+-import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+-import net.minecraft.network.protocol.game.ClientboundTagQueryPacket;
+-import net.minecraft.network.protocol.game.ServerGamePacketListener;
+-import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+-import net.minecraft.network.protocol.game.ServerboundBlockEntityTagQuery;
+-import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
+-import net.minecraft.network.protocol.game.ServerboundChatAckPacket;
+-import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
+-import net.minecraft.network.protocol.game.ServerboundChatPacket;
+-import net.minecraft.network.protocol.game.ServerboundChatSessionUpdatePacket;
+-import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
+-import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
+-import net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket;
+-import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
+-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+-import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+-import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
+-import net.minecraft.network.protocol.game.ServerboundEditBookPacket;
+-import net.minecraft.network.protocol.game.ServerboundEntityTagQuery;
+-import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+-import net.minecraft.network.protocol.game.ServerboundJigsawGeneratePacket;
+-import net.minecraft.network.protocol.game.ServerboundKeepAlivePacket;
+-import net.minecraft.network.protocol.game.ServerboundLockDifficultyPacket;
+-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+-import net.minecraft.network.protocol.game.ServerboundMoveVehiclePacket;
+-import net.minecraft.network.protocol.game.ServerboundPaddleBoatPacket;
+-import net.minecraft.network.protocol.game.ServerboundPickItemPacket;
+-import net.minecraft.network.protocol.game.ServerboundPlaceRecipePacket;
+-import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
+-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+-import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+-import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
+-import net.minecraft.network.protocol.game.ServerboundPongPacket;
+-import net.minecraft.network.protocol.game.ServerboundRecipeBookChangeSettingsPacket;
+-import net.minecraft.network.protocol.game.ServerboundRecipeBookSeenRecipePacket;
+-import net.minecraft.network.protocol.game.ServerboundRenameItemPacket;
+-import net.minecraft.network.protocol.game.ServerboundResourcePackPacket;
+-import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
+-import net.minecraft.network.protocol.game.ServerboundSelectTradePacket;
+-import net.minecraft.network.protocol.game.ServerboundSetBeaconPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetCommandBlockPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetCommandMinecartPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetJigsawBlockPacket;
+-import net.minecraft.network.protocol.game.ServerboundSetStructureBlockPacket;
+-import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
+-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+-import net.minecraft.network.protocol.game.ServerboundTeleportToEntityPacket;
+-import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+-import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
++import net.minecraft.network.protocol.game.*;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.MinecraftServer;
+@@ -302,6 +238,8 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+     private static final int MAX_SIGN_LINE_LENGTH = Integer.getInteger("Paper.maxSignLength", 80); // Paper
+ 
+     private String clientBrandName = null; // Paper - Brand name
++    private boolean isBundling = false; // Paprr - Packet bundling API
++    private List<Packet<ClientGamePacketListener>> bundleQueue = new LinkedList<>(); // Paper - Packet bundling API
+ 
+     public ServerGamePacketListenerImpl(MinecraftServer server, Connection connection, ServerPlayer player) {
+         this.lastChatTimeStamp = new AtomicReference(Instant.EPOCH);
+@@ -2145,6 +2083,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+         }
+         // CraftBukkit end
+ 
++        // Paper end - packet bundling
++        if (this.isBundling) {
++            this.bundleQueue.add((Packet<ClientGamePacketListener>) packet);
++            return;
++        }
++        // Paper start
++
+         try {
+             this.connection.send(packet, callbacks);
+         } catch (Throwable throwable) {
+@@ -3640,4 +3585,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+ 
+         InteractionResult run(ServerPlayer player, Entity entity, InteractionHand hand);
+     }
++
++    // Paper start - packet bundling methods
++    public void beginBundle() {
++        if (this.isBundling) {
++            throw new IllegalStateException("A bundle is already in progress!");
++        } else if (!this.bundleQueue.isEmpty()) {
++            throw new IllegalStateException("The bundle queue was not cleared!");
++        }
++
++        this.isBundling = true;
++    }
++
++    public void endBundle() {
++        if (!this.isBundling) {
++            throw new IllegalStateException("No bundle is in progress!");
++        }
++
++        this.isBundling = false;
++
++        if (!this.bundleQueue.isEmpty()) {
++            this.send(new ClientboundBundlePacket(this.bundleQueue.stream().toList()));
++        }
++
++        this.bundleQueue.clear();
++    }
++    // PAper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 1bada55af5d16437da4d16f9ded55f88a6121eb4..264a3d1d85ae69fc9877b65063c13bbddc3cfdc3 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -15,8 +15,8 @@ import java.lang.ref.WeakReference;
+ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
+ import java.util.ArrayList;
+-import java.util.Arrays;
+ import java.util.Collection;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.LinkedHashMap;
+@@ -26,9 +26,13 @@ import java.util.Optional;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.WeakHashMap;
++import java.util.function.Consumer;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.annotation.Nullable;
++
++import net.kyori.adventure.audience.Audience;
++import net.kyori.adventure.audience.ForwardingAudience;
+ import net.minecraft.advancements.AdvancementProgress;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Holder;
+@@ -82,7 +86,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.biome.BiomeManager;
+ import net.minecraft.world.level.block.entity.SignBlockEntity;
+ import net.minecraft.world.level.border.BorderChangeListener;
+ import net.minecraft.world.level.saveddata.maps.MapDecoration;
+@@ -131,7 +134,6 @@ import org.bukkit.craftbukkit.conversations.ConversationTracker;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.map.RenderData;
+-import org.bukkit.craftbukkit.profile.CraftPlayerProfile;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+@@ -152,7 +154,6 @@ import org.bukkit.map.MapView;
+ import org.bukkit.metadata.MetadataValue;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.messaging.StandardMessenger;
+-import org.bukkit.profile.PlayerProfile;
+ import org.bukkit.scoreboard.Scoreboard;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -3141,6 +3142,98 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     public void increaseWardenWarningLevel() {
+         this.getHandle().wardenSpawnTracker.increaseWarningLevel();
+     }
++
++    @Override
++    public void doBundled(Consumer<BundleContext> action) {
++        ServerGamePacketListenerImpl connection = this.getHandle().connection;
++
++        connection.beginBundle();
++        try {
++            action.accept(new CraftPlayerBundleContext(this));
++        } finally {
++            connection.endBundle();
++        }
++    }
++
++    public static class CraftPlayerBundleContext implements ForwardingAudience, BundleContext {
++        private final CraftPlayer handle;
++
++        public CraftPlayerBundleContext(CraftPlayer handle) {
++            this.handle = handle;
++        }
++
++        @Override
++        public @NotNull Iterable<? extends Audience> audiences() {
++            return Collections.singleton(this.handle);
++        }
++
++        @Override
++        @Deprecated
++        public @NotNull Player getPlayer() {
++            return this.handle;
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count) {
++            this.handle.spawnParticle(particle, location, count);
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count) {
++            this.handle.spawnParticle(particle, x, y, z, count);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, location, count, data);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, x, y, z, count, data);
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ) {
++            this.handle.spawnParticle(particle, location, count, offsetX, offsetY, offsetZ);
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ) {
++            this.handle.spawnParticle(particle, x, y, z, count, offsetX, offsetY, offsetZ);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, data);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, x, y, z, count, offsetX, offsetY, offsetZ, data);
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, double extra) {
++            this.handle.spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
++        }
++
++        @Override
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, double extra) {
++            this.handle.spawnParticle(particle, x, y, z, count, offsetX, offsetY, offsetZ, extra);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, double extra, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, data);
++        }
++
++        @Override
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, double extra, @org.jetbrains.annotations.Nullable T data) {
++            this.handle.spawnParticle(particle, x, y, z, count, offsetX, offsetY, offsetZ, extra, data);
++        }
++    }
++
+     // Paper end
+ 
+     public Player.Spigot spigot()

@@ -1,0 +1,294 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MD <1917406+mdcfe@users.noreply.github.com>
+Date: Wed, 29 Mar 2023 20:00:00 +0100
+Subject: [PATCH] Packet bundling API!
+
+
+diff --git a/src/main/java/org/bukkit/MusicInstrument.java b/src/main/java/org/bukkit/MusicInstrument.java
+index 614dc9f2ff5aa69659947c3fcedef98f9c9bab98..421a62320ebee09e61bdd308afeaa82229922aa9 100644
+--- a/src/main/java/org/bukkit/MusicInstrument.java
++++ b/src/main/java/org/bukkit/MusicInstrument.java
+@@ -59,7 +59,7 @@ public final class MusicInstrument implements Keyed {
+     }
+ 
+     private static MusicInstrument getInstrument(@NotNull String name) {
+-        Preconditions.checkArgument(name != null, "Instrument name cannot be null");
++        Preconditions.checkArgument(name != null, "Instrument name cannot, I repeat, CANNOT, be null"); // Paper - implement packet bundling
+ 
+         return new MusicInstrument(NamespacedKey.minecraft(name));
+     }
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 5f11b2e9c1bca121ae72dd0ec94ae4a86f80a324..9370b626c806c22e953d695c7150ac1f41238fcc 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -3,6 +3,9 @@ package org.bukkit.entity;
+ import java.net.InetSocketAddress;
+ import java.util.Collection;
+ import java.util.Map;
++import java.util.function.Consumer;
++
++import net.kyori.adventure.audience.Audience;
+ import org.bukkit.DyeColor;
+ import org.bukkit.Effect;
+ import org.bukkit.GameMode;
+@@ -866,8 +869,8 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * they have seen it before because this method was called.
+      * Note this method does not make the player invulnerable, which is normally expected when viewing credits.
+      *
+-     * @see #hasSeenWinScreen() 
+-     * @see #setHasSeenWinScreen(boolean) 
++     * @see #hasSeenWinScreen()
++     * @see #setHasSeenWinScreen(boolean)
+      * @see <a href="https://minecraft.fandom.com/wiki/End_Poem#Technical_details">https://minecraft.fandom.com/wiki/End_Poem#Technical_details</a>
+      */
+     public void showWinScreen();
+@@ -2086,7 +2089,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * @param saturationLevel the saturation level of the player
+      */
+     public void sendHealthUpdate(final double health, final int foodLevel, final float saturationLevel);
+-    
++
+     /**
+      * Forcefully sends a health update to the player.
+      * This uses the player's current health, saturation, and food level.
+@@ -2095,7 +2098,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     public void sendHealthUpdate();
+     // Paper end
+-    
++
+     /**
+      * Gets the entity which is followed by the camera when in
+      * {@link GameMode#SPECTATOR}.
+@@ -2456,7 +2459,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * @param simulationDistance the player's new simulation distance
+      */
+     public void setSimulationDistance(int simulationDistance);
+-    
++
+     /**
+      * Gets the no-ticking view distance for this player.
+      * <p>
+@@ -2994,6 +2997,222 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * Even if the warning level is over threshold, the player still needs to activate a Shrieker in order to summon the Warden.
+      */
+     void increaseWardenWarningLevel();
++
++    /**
++     * Perform a series of actions on the player as a packet bundle.
++     *
++     * @param action The action to perform.
++     */
++    void doBundled(Consumer<BundleContext> action);
++
++    interface BundleContext extends Audience {
++        /**
++         * Gets the player associated with this bundle.
++         *
++         * @return the player
++         */
++        @NotNull Player getPlayer();
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location.
++         *
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         */
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location.
++         *
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         */
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, @Nullable T data);
++
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, @Nullable T data);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         */
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         */
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, @Nullable T data);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, @Nullable T data);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param extra the extra data for this particle, depends on the
++         *              particle used (normally speed)
++         */
++        public void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, double extra);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param extra the extra data for this particle, depends on the
++         *              particle used (normally speed)
++         */
++        public void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, double extra);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param location the location to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param extra the extra data for this particle, depends on the
++         *              particle used (normally speed)
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, @NotNull Location location, int count, double offsetX, double offsetY, double offsetZ, double extra, @Nullable T data);
++
++        /**
++         * Spawns the particle (the number of times specified by count)
++         * at the target location. The position of each particle will be
++         * randomized positively and negatively by the offset parameters
++         * on each axis.
++         *
++         * @param <T> type of particle data (see {@link Particle#getDataType()}
++         * @param particle the particle to spawn
++         * @param x the position on the x axis to spawn at
++         * @param y the position on the y axis to spawn at
++         * @param z the position on the z axis to spawn at
++         * @param count the number of particles
++         * @param offsetX the maximum random offset on the X axis
++         * @param offsetY the maximum random offset on the Y axis
++         * @param offsetZ the maximum random offset on the Z axis
++         * @param extra the extra data for this particle, depends on the
++         *              particle used (normally speed)
++         * @param data the data to use for the particle or null,
++         *             the type of this depends on {@link Particle#getDataType()}
++         */
++        public <T> void spawnParticle(@NotNull Particle particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, double extra, @Nullable T data);
++    }
++
+     // Paper end
+ 
+     @NotNull
